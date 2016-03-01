@@ -319,6 +319,10 @@ func (pool *hostConnPool) Pick() *Conn {
 		}
 	}
 
+	if leastBusyConn == nil && size > 0 {
+		leastBusyConn = pool.conns[pos%size]
+	}
+
 	return leastBusyConn
 }
 
