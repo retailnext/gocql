@@ -543,6 +543,7 @@ func (c *Conn) exec(req frameWriter, tracer Tracer) (*framer, error) {
 		if c.Closed() {
 			return nil, ErrConnectionClosed
 		} else {
+			c.releaseStream(stream)
 			return nil, ErrNoStreams
 		}
 	}
