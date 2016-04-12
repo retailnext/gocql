@@ -547,16 +547,6 @@ func (c *Conn) exec(req frameWriter, tracer Tracer) (*framer, error) {
 		}
 	}
 
-	if timeout > 0 {
-		timeout -= time.Since(start)
-		// if we used up our timeout waiting for a stream, the error is "there was no
-		// stream available (in time)"
-		if timeout <= 0 {
-			c.releaseStream(stream)
-			return nil, ErrNoStreams
-		}
-	}
-
 	// resp is basically a waiting semaphore protecting the framer
 	framer := newFramer(c, c, c.compressor, c.version)
 
@@ -574,6 +564,17 @@ func (c *Conn) exec(req frameWriter, tracer Tracer) (*framer, error) {
 	call.framer = framer
 	call.timeout = make(chan struct{})
 	call.streamID = stream
+
+	if timeout > 0 {
+		timeout -= time.Since(start)
+		// if we used up our timeout waiting for a stream, the error is "there was no
+		// stream available (in time)"
+		if timeout <= 0 {
+			close(call.timeout)
+			c.releaseStream(stream)
+			return nil, ErrNoStreams
+		}
+	}
 
 	if tracer != nil {
 		framer.trace()
