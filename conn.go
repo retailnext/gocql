@@ -543,7 +543,6 @@ func (c *Conn) exec(req frameWriter, tracer Tracer) (*framer, error) {
 		if c.Closed() {
 			return nil, ErrConnectionClosed
 		} else {
-			c.releaseStream(stream)
 			return nil, ErrNoStreams
 		}
 	}
@@ -553,6 +552,7 @@ func (c *Conn) exec(req frameWriter, tracer Tracer) (*framer, error) {
 		// if we used up our timeout waiting for a stream, the error is "there was no
 		// stream available (in time)"
 		if timeout <= 0 {
+			c.releaseStream(stream)
 			return nil, ErrNoStreams
 		}
 	}
