@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -380,6 +381,8 @@ func (c *Conn) closeWithError(err error) {
 	if !atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		return
 	}
+
+	Logger.Printf("gocql: closing with error: %s stack: %s", err, debug.Stack())
 
 	// we should attempt to deliver the error back to the caller if it
 	// exists
