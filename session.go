@@ -380,6 +380,7 @@ func (s *Session) Query(stmt string, values ...interface{}) *Query {
 	qry.session = s
 	qry.stmt = stmt
 	qry.values = values
+	qry.Events = qry.Events[:0]
 	qry.defaultsFromSession()
 	return qry
 }
@@ -826,6 +827,8 @@ type Query struct {
 	customPayload         map[string][]byte
 	metrics               *queryMetrics
 
+	Events []QueryEvent
+
 	disableAutoPage bool
 
 	// getKeyspace is field so that it can be overriden in tests
@@ -981,7 +984,7 @@ func (q *Query) withContext(ctx context.Context) ExecutableQuery {
 // canceled.
 func (q *Query) WithContext(ctx context.Context) *Query {
 	q2 := *q
-	q2.context = ctx
+	q2.context = context.WithValue(ctx, ctxDebugKey{}, &q2.Events)
 	return &q2
 }
 

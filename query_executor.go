@@ -25,6 +25,8 @@ type queryExecutor struct {
 }
 
 func (q *queryExecutor) attemptQuery(ctx context.Context, qry ExecutableQuery, conn *Conn) *Iter {
+	debugQuery(ctx, "starting_attempt", conn.addr)
+
 	start := time.Now()
 	iter := qry.execute(ctx, conn)
 	end := time.Now()
@@ -53,6 +55,8 @@ func (q *queryExecutor) speculate(ctx context.Context, qry ExecutableQuery, sp S
 }
 
 func (q *queryExecutor) executeQuery(qry ExecutableQuery) (*Iter, error) {
+	debugQuery(qry.Context(), "starting_execution", "")
+
 	// check if the query is not marked as idempotent, if
 	// it is, we force the policy to NonSpeculative
 	sp := qry.speculativeExecutionPolicy()

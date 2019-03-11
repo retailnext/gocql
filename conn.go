@@ -844,7 +844,30 @@ func (w *writeCoalescer) writeFlusher(interval time.Duration) {
 	}
 }
 
+type ctxDebugKey struct{}
+
+type QueryEvent struct {
+	Name string
+	Host string
+	Time time.Time
+}
+
+func debugQuery(ctx context.Context, name, host string) {
+	events, ok := ctx.Value(ctxDebugKey{}).(*[]QueryEvent)
+	if !ok {
+		return
+	}
+
+	*events = append(*events, QueryEvent{
+		Name: name,
+		Host: host,
+		Time: time.Now(),
+	})
+}
+
 func (c *Conn) exec(ctx context.Context, req frameWriter, tracer Tracer) (*framer, error) {
+	debugQuery(ctx, "starting_exec", c.addr)
+
 	// TODO: move tracer onto conn
 	stream, ok := c.streams.GetStream()
 	if !ok {
@@ -877,6 +900,8 @@ func (c *Conn) exec(ctx context.Context, req frameWriter, tracer Tracer) (*frame
 	}
 
 	err := req.writeFrame(framer, stream)
+	debugQuery(ctx, "wrote_frame", c.addr)
+
 	if err != nil {
 		// closeWithError will block waiting for this stream to either receive a response
 		// or for us to timeout, close the timeout chan here. Im not entirely sure
@@ -916,6 +941,7 @@ func (c *Conn) exec(ctx context.Context, req frameWriter, tracer Tracer) (*frame
 
 	select {
 	case err := <-call.resp:
+		debugQuery(ctx, "got_resp", c.addr)
 		close(call.timeout)
 		if err != nil {
 			if !c.Closed() {
@@ -928,6 +954,7 @@ func (c *Conn) exec(ctx context.Context, req frameWriter, tracer Tracer) (*frame
 			return nil, err
 		}
 	case <-timeoutCh:
+		debugQuery(ctx, "timeout", c.addr)
 		close(call.timeout)
 		c.handleTimeout()
 		return nil, ErrTimeoutNoResponse
@@ -1090,6 +1117,7 @@ func (c *Conn) executeQuery(ctx context.Context, qry *Query) *Iter {
 		// Prepare all DML queries. Other queries can not be prepared.
 		var err error
 		info, err = c.prepareStatement(ctx, qry.stmt, qry.trace)
+		debugQuery(ctx, "prepared_statement", c.addr)
 		if err != nil {
 			return &Iter{err: err}
 		}
@@ -1138,6 +1166,7 @@ func (c *Conn) executeQuery(ctx context.Context, qry *Query) *Iter {
 	}
 
 	framer, err := c.exec(ctx, frame, qry.trace)
+	debugQuery(ctx, "finished_exec", c.addr)
 	if err != nil {
 		return &Iter{err: err}
 	}
@@ -1198,6 +1227,7 @@ func (c *Conn) executeQuery(ctx context.Context, qry *Query) *Iter {
 		// is not consistent with regards to its schema.
 		return iter
 	case *RequestErrUnprepared:
+		debugQuery(ctx, "got_err_unprepared", c.addr)
 		stmtCacheKey := c.session.stmtsLRU.keyFor(c.addr, c.currentKeyspace, qry.stmt)
 		c.session.stmtsLRU.evictPreparedID(stmtCacheKey, x.StatementId)
 		return c.executeQuery(ctx, qry)
