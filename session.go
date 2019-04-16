@@ -259,6 +259,10 @@ func (s *Session) init() error {
 	return nil
 }
 
+func (s *Session) AwaitSchemaAgreement() error {
+	return s.control.awaitSchemaAgreement()
+}
+
 func (s *Session) reconnectDownedHosts(intv time.Duration) {
 	reconnectTicker := time.NewTicker(intv)
 	defer reconnectTicker.Stop()
