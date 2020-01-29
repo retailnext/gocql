@@ -11,6 +11,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -656,7 +657,7 @@ func TestQueryTimeout(t *testing.T) {
 
 	select {
 	case err := <-ch:
-		if err != ErrTimeoutNoResponse {
+		if !errors.Is(err, ErrTimeoutNoResponse) {
 			t.Fatalf("expected to get %v for timeout got %v", ErrTimeoutNoResponse, err)
 		}
 	case <-time.After(40*time.Millisecond + db.cfg.Timeout):
@@ -750,7 +751,7 @@ func TestQueryTimeoutClose(t *testing.T) {
 		t.Fatal("timedout waiting to get a response once cluster is closed")
 	}
 
-	if err != ErrConnectionClosed {
+	if !errors.Is(err, ErrConnectionClosed) {
 		t.Fatalf("expected to get %v got %v", ErrConnectionClosed, err)
 	}
 }

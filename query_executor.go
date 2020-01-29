@@ -2,6 +2,8 @@ package gocql
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -90,6 +92,7 @@ func (q *queryExecutor) do(ctx context.Context, qry ExecutableQuery) *Iter {
 
 	var lastErr error
 	var iter *Iter
+	var queriedHosts []string
 	for selectedHost != nil {
 		host := selectedHost.Info()
 		if host == nil || !host.IsUp() {
@@ -120,6 +123,13 @@ func (q *queryExecutor) do(ctx context.Context, qry ExecutableQuery) *Iter {
 			return iter
 		default:
 			selectedHost.Mark(iter.err)
+		}
+
+		if iter.err != nil {
+			queriedHosts = append(queriedHosts, iter.host.hostname)
+			if iter.err == ErrTimeoutNoResponse || iter.err == ErrConnectionClosed {
+				iter.err = fmt.Errorf("%w (queried hosts: %s)", iter.err, strings.Join(queriedHosts, ", "))
+			}
 		}
 
 		// Exit if the query was successful
